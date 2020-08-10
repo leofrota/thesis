@@ -1,0 +1,622 @@
+---
+title: "Watchlist"
+output:
+  html_document: default
+  pdf_document: default
+always_allow_html: true
+---
+
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+
+```{r setup, include=FALSE, echo = FALSE}
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(ggcorrplot)
+library(lubridate)
+library(plotly)
+library(DT)
+library(sparkline)
+library(showtext)
+library(reshape2)
+library(anytime)
+
+
+
+base <- read_csv("forecastwithvix_07-06-20.csv")
+base_no_vix <- read_csv("forecastwithoutvix_07-06-20.csv")
+coucodes <- read.csv("coucodes.csv", sep=";")
+
+```
+
+
+````{r}
+
+
+base$year = ydm(anydate(base$year))
+
+
+````
+
+
+
+
+````{r}
+
+test <- base %>%
+  group_by(`ISO2 Code`) %>%
+  mutate(jujubinha = lead(ENDE_XDC_USD_RATE, n=12),
+         perebinha = (jujubinha - ENDE_XDC_USD_RATE)/(ENDE_XDC_USD_RATE)*100) %>%
+  filter(year > "2015-01-01")
+
+datalist = list()
+
+
+for (i in  seq(20,100,5)){
+
+  
+res <- test %>%
+  mutate(threshold_d  = case_when(pred*100 >= i ~ 1,
+                         pred*100 < i ~ 0)) %>%
+  group_by(threshold_d ) %>%
+  summarise(Currency_change = median(perebinha, na.rm = TRUE))
+
+res$threshold <- i
+
+datalist[[i]] <- res
+
+}
+
+df <- do.call("rbind",datalist) #combine all vectors into a matrix
+
+
+trumpinho <- dcast(df, threshold ~threshold_d, value.var = "Currency_change")
+
+````
+
+
+
+````{r}
+
+
+for (i in  seq(20,100,5)){
+
+  
+res <- test %>%
+  mutate(threshold_d  = case_when(pred*100 >= i ~ 1,
+                         pred*100 < i ~ 0)) %>%
+  group_by(precrisis, threshold_d ) %>%
+  count()
+
+res$threshold <- i
+
+datalist[[i]] <- res
+
+}
+
+df2 <- do.call("rbind",datalist) #combine all vectors into a matrix
+#df2$n = df2$n*100/2688
+#df2 = dcast(df2, n ~ precrisis + threshold_d ~ threshold)
+
+df2 <- mutate(df2, novinho = n/2688*100)
+df2 = dcast(df2, threshold ~ precrisis + threshold_d, value.var = "novinho")
+ 
+
+````
+
+
+
+
+````{r} 
+  
+teste <- subset(base, year > "2019-01-01")
+
+teste <- teste %>%
+      select(year, `ISO2 Code`, pred)
+
+
+tabelinha <- teste %>%
+  group_by(`ISO2 Code`) %>%
+  summarize( trend = spk_chr(pred, type ="line",
+      chartRangeMin = 100, chartRangeMax = max(pred)))
+
+tabela <- left_join(teste, tabelinha)
+
+tabelona <- tabela %>%
+  subset(year == "2020-06-01") %>%
+  mutate(crisis_probability = round(pred,2)) %>%
+  select(year,`ISO2 Code`, crisis_probability, trend)
+
+
+````
+
+
+````{r}
+
+datatable(tabelona, escape = FALSE, filter = 'top', options = list(paging = FALSE, fnDrawCallback = htmlwidgets::JS(
+  '
+function(){
+  HTMLWidgets.staticRender();
+}
+'
+)
+)) %>%
+  spk_add_deps()  %>%
+  formatStyle(
+    'crisis_probability',
+    background = styleColorBar(tabelona$crisis_probability, 'indianred'),
+    backgroundSize = '100% 90%',
+    backgroundRepeat = 'no-repeat',
+    backgroundPosition = 'center'
+  ) 
+
+
+````
+
+
+
+````{r, echo = FALSE}
+
+### Creating df 
+
+watchlist <- base %>%
+  mutate (ano = substr(as.character(year),1,4)) %>%
+  filter(ano == '2020')
+
+````
+
+# Change in Crisis Probability Tracker
+
+````{r, echo = FALSE, eval = FALSE}
+
+library(tidyverse)
+library(ggalt)
+library(janitor)
+library(stringr)
+library(zoo)
+
+my_colors <- function(palette = "cb") {
+  cb.palette <- c("#000000", "#E69F00", "#56B4E9", "#009E73",
+                  "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+  rcb.palette <- rev(cb.palette)
+  bly.palette <- c("#E69F00", "#0072B2", "#000000", "#56B4E9",
+                   "#009E73", "#F0E442", "#D55E00", "#CC79A7")
+  if (palette == "cb")
+    return(cb.palette)
+  else if (palette == "rcb")
+    return(rcb.palette)
+  else if (palette == "bly")
+    return(bly.palette)
+  else stop("Choose cb, rcb, or bly ony.")
+}
+
+stack = base
+
+
+stack_last = subset(stack, stack$year == max(stack$year))
+stack_3 = subset(stack, stack$year ==stack_last$year + months(-1))
+stack = as.data.frame(cbind(country = stack_last$`ISO2 Code`, pred = stack_last$pred, pred3 = stack_3$pred))
+stack$pred = as.numeric(as.character(stack$pred))
+stack$pred3 = as.numeric(as.character(stack$pred3))
+stack$growth = ifelse((stack$pred - stack$pred3) > 0, "Growth", "Decline")
+
+p <- ggplot(stack,
+            aes(x = pred3,
+                xend = pred,
+                y = reorder(country, pred),
+                yend = reorder(country, pred),
+                color = growth))
+
+
+p + geom_segment(size = 0.7,
+                 arrow = arrow(type = "closed", angle = 35,
+                               length = unit(0.01, "npc"))) +
+  scale_color_manual(labels = c("Decline", "Growth"),
+                     values = my_colors()) +
+  labs(title = "Change between the probability of a currency crisis from April to May",
+       x = "Probability of a currency crisis",
+       y = NULL,
+       color = "Direction of Change") +
+  theme_minimal() +
+  theme(legend.position = "bottom")+
+  xlim(0,1)
+
+
+
+
+#6months
+
+
+stack = base
+
+
+stack_last = subset(stack, stack$year == max(stack$year))
+stack_3 = subset(stack, stack$year == stack_last$year + months(-6))
+stack = as.data.frame(cbind(country = stack_last$`ISO2 Code`, pred = stack_last$pred, pred3 = stack_3$pred))
+stack$pred = as.numeric(as.character(stack$pred))
+stack$pred3 = as.numeric(as.character(stack$pred3))
+stack$growth = ifelse((stack$pred - stack$pred3) > 0, "Growth", "Decline")
+
+p <- ggplot(stack,
+            aes(x = pred3,
+                xend = pred,
+                y = reorder(country, pred),
+                yend = reorder(country, pred),
+                color = growth))
+
+
+p + geom_segment(size = 0.7,
+                 arrow = arrow(type = "closed", angle = 35,
+                               length = unit(0.01, "npc"))) +
+  scale_color_manual(labels = c("Decline", "Growth"),
+                     values = my_colors()) +
+  labs(title = "Change between the probability of a currency crisis in the last 6 months",
+       x = "Probability of a currency crisis",
+       y = NULL,
+       color = "Direction of Change") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  xlim(0,1)
+
+
+
+#year
+
+
+stack = base
+
+
+stack_last = subset(stack, stack$year == max(stack$year))
+stack_3 = subset(stack, stack$year == stack_last$year + months(-12))
+stack = as.data.frame(cbind(country = stack_last$`ISO2 Code`, pred = stack_last$pred, pred3 = stack_3$pred))
+stack$pred = as.numeric(as.character(stack$pred))
+stack$pred3 = as.numeric(as.character(stack$pred3))
+stack$growth = ifelse((stack$pred - stack$pred3) > 0, "Growth", "Decline")
+
+p <- ggplot(stack,
+            aes(x = pred3,
+                xend = pred,
+                y = reorder(country, pred),
+                yend = reorder(country, pred),
+                color = growth))
+
+
+p + geom_segment(size = 0.7,
+                 arrow = arrow(type = "closed", angle = 35,
+                               length = unit(0.01, "npc"))) +
+  scale_color_manual(labels = c("Decline", "Growth"),
+                     values = my_colors()) +
+  labs(title = "Change between the probability of a currency crisis in the last 12 months",
+       x = "Probability of a currency crisis",
+       y = NULL,
+       color = "Direction of Change") +
+  theme_minimal() +
+  theme(legend.position = "bottom") +
+  xlim(0,1)
+
+
+
+````
+
+
+# Global Currency Crisis Index
+
+
+````{r, echo = FALSE}
+### Creating mean prediction index
+
+base1 <- base %>% 
+  group_by(year) %>%
+  summarise(meanpred = mean(pred))
+base <- left_join(base,base1)
+
+base2 <- base_no_vix %>% 
+  group_by(year) %>%
+  summarise(meanpred = mean(pred))
+base_no_vix <- left_join(base_no_vix,base2)
+
+
+
+ ggplot(data = base, aes(x = year)) + 
+    geom_line(aes(y=meanpred), 
+            color = "#09557f",
+            alpha = 0.6,
+            size = 0.6) + 
+   theme_minimal()
+ 
+ 
+ ggplot(data = base_no_vix, aes(x = year)) + 
+    geom_line(aes(y=meanpred), 
+            color = "#09557f",
+            alpha = 0.6,
+            size = 0.6) + 
+   theme_minimal()
+
+
+````
+
+
+
+# Number of Currency Crisis
+
+````{r, echo = FALSE}
+
+ crises <- base %>%
+  mutate(ano = ymd(year)) %>%
+  mutate(aninho = year(ano)) %>%
+  group_by(aninho) %>%
+  summarize(number_of_crisis = sum(dummy))
+  
+  
+  
+ p  <- ggplot(data = crises) +
+    geom_col(aes(x = aninho, y= number_of_crisis), 
+            color = "#09557f",
+            alpha = 0.6,
+            size = 0.6,
+            position = position_dodge2(width = 0.9)) + 
+   theme_minimal() +
+   theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+````
+
+````{r, echo = FALSE}
+
+
+basona <- merge(base,coucodes, by.x = 'ISO2 Code', by.y = 'ISO2.Code', all.x = TRUE)
+basona <- mutate(basona, Region  = `Region..IMF.` )
+basona <- mutate(basona, Country_Name  = `IMF.Name` )
+basona <- mutate(basona, Crisis  = dummy )
+````
+
+````{r, echo = FALSE}
+## Number of crisis per month
+
+
+
+
+plot <- basona %>%
+  mutate (Year = substr(as.character(year),1,4)) %>%
+  ggplot() + 
+    geom_col(aes(x = Year  , y = Crisis, fill = Region, text = `Country_Name`), 
+            color = "#09557f",
+            alpha = 0.6,
+            size = 0.6)  + 
+   scale_fill_brewer(palette="RdBu") + 
+   theme_minimal() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+ggplotly(plot) %>%
+  layout(
+    images = list(
+      source = base64enc::dataURI(file = "cs.png"),
+      text = 'ISO2 Code',
+      hoverinfo = "text",
+      x = 0, y = 1, 
+      sizex = 0.35, sizey = 0.2,
+      xref = "paper", yref = "paper", 
+      xanchor = "left", yanchor = "bottom"
+    ),
+    margin = list(t = 50)
+  )
+
+````
+
+
+
+
+
+# Heatmap currency crisis by month
+
+
+
+````{r, echo = FALSE, eval = FALSE}
+
+### Heatmap currency crisis by month
+
+countries = unique(base$`ISO2 Code`)
+countries = as.data.frame(countries)
+countries$n = rep(1:7, each=6)
+countries$n2 = rep(seq(1,6,1), times = 7)
+
+countries$`ISO2 Code` = countries$countries
+
+
+stack = merge(base, countries, by = "ISO2 Code")
+stack$ano = substr(stack$year, start = 1, stop = 4)
+stack$mes = substr(stack$year, start = 6, stop = 7)
+
+stacked = stack %>% select(year, dummy)
+
+
+stacked = aggregate(x = stacked$dummy, 
+                    by = list(stacked$year), 
+                    FUN = sum)
+
+stacked$ano = as.numeric(substr(stacked$Group.1, start = 1, stop = 4))
+stacked$mes = substr(stacked$Group.1, start = 6, stop = 7)
+
+
+timeheat <- ggplot(stacked, aes(ano, mes, fill = x)) + 
+  geom_tile(colour="gray10", size=1) +
+  scale_y_discrete(labels=month.abb)+
+  geom_text(aes(label=x), size=5, color = "gray30") +
+  xlab("") + 
+  ylab("") +
+  ggtitle("Currency crisis by month") +
+  theme(
+    plot.title = element_text(color="black",hjust=0,vjust=1, size=rel(2)),
+    plot.background = element_rect(fill="white"),
+    panel.background = element_rect(fill="white"),
+    panel.border = element_rect(fill=NA,color="white", size=0.5, linetype="solid"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(), 
+    axis.text = element_text(color="black", size=rel(1.5)),
+    axis.text.y  = element_text(hjust=1),
+    legend.text = element_text(color="black", size=rel(1.3)),
+    legend.background = element_rect(fill="white"),
+    legend.position = "bottom",
+    legend.title=element_blank()
+  )
+
+ggplotly(timeheat)
+
+````
+
+````{r, echo = FALSE, eval = FALSE}
+
+### Heatmap currency crisis by month
+
+countries = unique(base$`ISO2 Code`)
+countries = as.data.frame(countries)
+countries$n = rep(1:7, each=6)
+countries$n2 = rep(seq(1,6,1), times = 7)
+
+countries$`ISO2 Code` = countries$countries
+
+
+stack = merge(base, countries, by = "ISO2 Code")
+stack$ano = substr(stack$year, start = 1, stop = 4)
+stack$mes = substr(stack$year, start = 6, stop = 7)
+
+stacked = stack %>% select(year, pred)
+
+
+stacked = aggregate(x = stacked$pred, 
+                    by = list(stacked$year), 
+                    FUN = mean)
+
+stacked$ano = as.numeric(substr(stacked$Group.1, start = 1, stop = 4))
+stacked$mes = substr(stacked$Group.1, start = 6, stop = 7)
+
+
+ggplot(stacked, aes(ano, mes, fill = x)) + 
+  geom_tile(colour="gray10", size=1) +
+  scale_y_discrete(labels=month.abb) +
+  xlab("") + 
+  ylab("") +
+  ggtitle("Currency crisis Probability by month") +
+  theme(
+    plot.title = element_text(color="black",hjust=0,vjust=1, size=rel(2)),
+    plot.background = element_rect(fill="white"),
+    panel.background = element_rect(fill="white"),
+    panel.border = element_rect(fill=NA,color="white", size=0.5, linetype="solid"),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    axis.line = element_blank(),
+    axis.ticks = element_blank(), 
+    axis.text = element_text(color="black", size=rel(1.5)),
+    axis.text.y  = element_text(hjust=1),
+    legend.text = element_text(color="black", size=rel(1.3)),
+    legend.background = element_rect(fill="white"),
+    legend.position = "bottom",
+    legend.title=element_blank()
+  )
+
+
+
+````
+
+
+# Additional Analysis
+
+````{r}
+base_quantilzinho <- base %>%
+  group_by(`ISO2 Code`) %>%
+  mutate(jujubinha = lead(ENDE_XDC_USD_RATE, n=12),
+         perebinha = (jujubinha - ENDE_XDC_USD_RATE)/(ENDE_XDC_USD_RATE)*100) %>%
+  filter(year > "2015-01-01") %>%
+  ungroup() %>%
+  mutate(quantilzao = cut(pred, seq(0,1,0.05))) %>%
+  group_by(quantilzao) %>%
+  summarise(Currency_change = median(perebinha, na.rm = TRUE))
+
+
+ggplot(base_quantilzinho, aes(x = quantilzao, y = Currency_change)) +
+  geom_point(color = "steelblue") + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  
+
+````
+
+
+
+````{r, echo = FALSE}
+
+test <- base %>%
+          group_by(`ISO2 Code`) %>%
+          summarize(
+            meanpred = mean(pred, na.rm = TRUE),
+            sd = sd(pred, na.rm = TRUE),
+            min = min(pred),
+            max = max(pred)) %>%
+          arrange(desc(meanpred))
+
+testinho <- base %>%
+  group_by(`ISO2 Code`) %>%
+  summarize(
+    FXvolatility = sd(exchange_change)
+  )
+
+test <- left_join(test,testinho)
+test <- subset(test, test$`ISO2 Code` != "MM")
+
+ggplot(data = test) + 
+    geom_point(aes(x = meanpred  , y= FXvolatility, colour = `ISO2 Code`), 
+            color = "#09557f",
+            alpha = 0.6,
+            size = 0.6) + 
+  geom_smooth(mapping = aes(x = meanpred, y = FXvolatility)) + 
+   theme_minimal()
+ 
+
+````
+
+# Individual Country Graphs
+
+````{r}
+
+### loop das 1000 horas de programação
+
+for(x in unique(base$`ISO2 Code`)){
+   
+testebr <- filter(base, `ISO2 Code` == x)
+testebr$precrisis <- ifelse(testebr$year == "1996-01-01",0,testebr$precrisis) 
+dummyanos <- testebr$year[testebr$dummy == 1]
+dummynho <- diff(testebr$precrisis) 
+dummynho <- c(0,dummynho)
+testebr$dummynho <- dummynho
+inicio <-  testebr$year[testebr$dummynho == 1]
+fim <- testebr$year[testebr$dummynho == -1]
+
+docinho <- (length(inicio)>0)
+  
+grafico <- ggplot() +
+  geom_line(testebr, mapping = aes(x = year,y = pred), color = "#09557f", size = 1.25) +
+  {if(docinho)geom_vline(mapping = aes(xintercept = dummyanos), color = "lightblue")} +
+  {if(docinho)geom_rect(mapping = aes(xmin = inicio, xmax = fim, ymin = -Inf, ymax = Inf),
+            alpha = 0.2)} +
+  ggtitle(x) + 
+  theme_minimal() + 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) + 
+  ylim(0,1) +
+  ylab("Currency Crisis Probability") +
+  theme(text = element_text(family = "Roboto"))
+
+  
+
+print(grafico)  
+
+
+}
+
+  
+
+````
+
