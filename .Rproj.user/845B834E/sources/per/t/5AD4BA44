@@ -3,22 +3,22 @@
     "path": "~/thesis/datasus.R",
     "project_path": "datasus.R",
     "type": "r_source",
-    "hash": "3702774834",
+    "hash": "768856817",
     "contents": "",
-    "dirty": false,
+    "dirty": true,
     "created": 1596247198707.0,
     "source_on_save": false,
     "relative_order": 1,
     "properties": {
-        "cursorPosition": "119,22",
-        "scrollLine": "114"
+        "cursorPosition": "599,0",
+        "scrollLine": "575"
     },
     "folds": "",
-    "lastKnownWriteTime": 1597095831,
+    "lastKnownWriteTime": 1599681496,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1597095831242,
+    "last_content_update": 1600437204239,
     "read_only": false,
     "read_only_alternatives": []
 }

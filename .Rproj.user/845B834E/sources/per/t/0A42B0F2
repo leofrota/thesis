@@ -1,0 +1,32 @@
+{
+    "id": "0A42B0F2",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1599529155114.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "expression": "ETLSIH.ST_2017",
+        "caption": "ETLSIH.ST_2017",
+        "totalObservations": 956065,
+        "displayedObservations": 956065,
+        "variables": 240,
+        "cacheKey": "A692F07F",
+        "object": "ETLSIH.ST_2017",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=ETLSIH.ST_2017&cache_key=A692F07F&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1599515494,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1599529155114,
+    "read_only": false,
+    "read_only_alternatives": []
+}

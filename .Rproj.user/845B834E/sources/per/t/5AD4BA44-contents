@@ -10,26 +10,22 @@ library(readxl)
 library(stringi)
 library(microdadosBrasil)
 library(lubridate)
+library(stringr)
 
 ####
 
 
-
-
 #nome do arquivo
-
 
 #importando bases
 
 # Base Sistema de informações hospitalares SUS
-setwd("~/GitHub/Tese/Tese/base sus")
-df <- list.files(pattern = "2018")
-df_2018 <- read.csv(df, sep = "\t", quote = "")
+base_hospitalares_2017 <- read.csv2("~/thesis/ETLSIH.ST_2017.csv")
 
 ### Base Sistema de Informação de Nascidos Vivos
 
-#ETLSINASC.DNRES_2017 <- read.delim("~/GitHub/Tese/Tese/ETLSINASC.DNRES_2017.csv")
-amostra_nascidos <- read.csv("~/GitHub/Tese/Tese/amostra_nascidos.csv")
+base_nascidos_2017 <- read.delim("~/thesis/ETLSINASC.DNRES_2017.csv")
+
 
 # Base Tempo Médio de Estadia por Parto em Países Diferentes: Artigo Plos
 tempoocde <- read_excel("tempoocde.xlsx")
@@ -43,8 +39,6 @@ pop_br <- read_excel("pop_br.xlsx", col_types = c("text",
 # Base Cesarea IPUMS
 cesareaipums <- read_excel("cesareaipums.xlsx")
 
-
-
 ### Criando PIB per capita/Municipio
 
 pib_percapita <- merge(x = pop_br, y = pibpercapita2017, by.x = "codigo", by.y = "codigo")
@@ -53,15 +47,14 @@ pib_percapita <- pib_percapita %>%
   mutate(pib_percapitam = pib/pop)
   
 
-
 ### Extraindo amostra aleatoria das bases
 
-amostra <- df_2018 %>%
-  sample_n(100000) 
+amostra <- ETLSIH.ST_2017 %>%
+  sample_n(500000) 
 
 
 amostra_nascidos <- ETLSINASC.DNRES_2017 %>%
-  sample_n(100000) 
+  sample_n(500000) 
 
 
 ### Trabalhando a base de nascimentos
@@ -444,4 +437,168 @@ ggplot(teste, aes(x = DIAS_PERM, color = descricao)) +
   xlim(0,30)
 
 
+
+
+# merge final
+amostra <- amostra %>%
+  mutate(NASC = ymd(paste(substr(NASC,1,4), substr(NASC, 5,6),substr(NASC, 7,8), sep = "-")))
+
+
+amostra_nascidos <- amostra_nascidos %>%
+  mutate(DTNASCMAE = str_pad(DTNASCMAE, 8, pad = 0),
+         DTNASCMAE = paste(substr(DTNASCMAE, 5,8), substr(DTNASCMAE, 3,4), substr(DTNASCMAE,1,2), sep = "-"),
+         DTNASCMAE = ymd(DTNASCMAE))
+
+dt_final <- right_join(amostra, amostra_nascidos, by = c("CNES" = "CODESTAB", "NASC" = "DTNASCMAE",  "res_MUNCOD"= "CODMUNRES")) %>%
+  filter(!(is.na(ANO_CMPT))) 
+
+
+dup <- dt_final %>%
+  group_by(NASC, CEP, VAL_SP) %>%
+  count()
+ 
+dt_final <- left_join(dt_final %>% select(-n), dup) %>%
+  filter(n == 1)
+
+dt_final <- dt_final %>%
+  filter(def_procedimento_realizado %in% c("PARTO NORMAL", "PARTO CESARIANO"))
+
+dt_final <- dt_final %>%
+  mutate(permanencia = ifelse(DIAS_PERM < 1, "Alta Precoce", 
+                              ifelse(DIAS_PERM > 2, "Alta Acima de 48h",
+                              "Entre 24h e 48h")))
+
+dt_final$permanencia <- factor(dt_final$permanencia, levels = c("Entre 24h e 48h", "Alta Precoce","Alta Acima de 48h"  ))
+
+# graficos
+
+ggplot(dt_final %>% filter(APGAR5 < 25, CONSULTAS < 30), aes(x = CONSULTAS, y = APGAR5 )) +
+  geom_jitter(alpha = 0.8)
+
+
+ggplot(dt_final %>% filter(DIAS_PERM < 25), aes(x = DIAS_PERM, y = VAL_TOT )) +
+  geom_point(alpha = 0.8)
+
+
+### regressão OLS
+
+regressaozinha <- lm(APGAR5 ~ def_consultas + permanencia 
+                     + def_parto
+                     + def_idade_pub 
+                     + def_loc_nasc 
+                     + def_gestacao 
+                     + def_escol_mae 
+                     + QTDFILVIVO
+                     + def_raca_cor.x
+                     + def_marca_uti 
+                     + def_sexo.y
+                     + def_anomalia,
+                     data = dt_final)
+
+summary(regressaozinha)
+
+# regressão efeitos fixos
+
+library(plm)
+library(stargazer)
+
+efeitosfixos <- plm(APGAR5 ~ def_consultas + permanencia 
+                     + def_parto
+                     + def_idade_pub 
+                     + def_loc_nasc 
+                     + def_gestacao 
+                     + def_escol_mae 
+                     + QTDFILVIVO
+                     + def_raca_cor.x
+                     + def_marca_uti 
+                     + def_sexo.y
+                     + def_anomalia, 
+                    index = "nasc_codigo_adotado",
+                    data = dt_final,
+                    model = "within")
+
+summary(efeitosfixos)
+
+
+efeitosfixospeso <- plm(PESO ~ def_consultas + permanencia 
+                    + def_parto
+                    + def_idade_pub 
+                    + def_loc_nasc 
+                    + def_gestacao 
+                    + def_escol_mae 
+                    + QTDFILVIVO
+                    + def_raca_cor.x
+                    + def_marca_uti 
+                    + def_sexo.y
+                    + def_anomalia, 
+                    index = "nasc_codigo_adotado",
+                    data = dt_final,
+                    model = "within")
+
+summary(efeitosfixos)
+
+stargazer(regressaozinha, efeitosfixos, efeitosfixospeso ,type = "html", out = "model.htm")
+
+
+
+
+
+#### Regressão base cheia 
+
+
+regressaozinha <- lm(APGAR5 ~ def_consultas +
+                     + def_parto
+                    # + def_idade_pub 
+                     + def_loc_nasc 
+                     + def_gestacao 
+                     + def_escol_mae 
+                     + QTDFILVIVO
+                    # + def_raca_cor.x
+                    # + def_marca_uti 
+                     + def_sexo
+                     + def_anomalia,
+                     data = amostra_nascidos)
+
+summary(regressaozinha)
+
+# regressão efeitos fixos
+
+library(plm)
+library(stargazer)
+
+efeitosfixos <- plm(APGAR5 ~ def_consultas + 
+                    + def_parto
+                    #+ def_idade_pub 
+                    + def_loc_nasc 
+                    + def_gestacao 
+                    + def_escol_mae 
+                    + QTDFILVIVO
+                    + def_raca_cor
+                    + def_sexo
+                    + def_anomalia, 
+                    index = "nasc_codigo_adotado",
+                    data = amostra_nascidos,
+                    model = "within")
+
+summary(efeitosfixos)
+
+
+efeitosfixospeso <- plm(PESO ~ def_consultas +
+                        + def_parto
+                        #+ def_idade_pub 
+                        + def_loc_nasc 
+                        + def_gestacao 
+                        + def_escol_mae 
+                        + QTDFILVIVO
+                        + def_raca_cor
+                        + def_marca_uti 
+                        + def_sexo.y
+                        + def_anomalia, 
+                        index = "nasc_codigo_adotado",
+                        data = amostra_nascidos,
+                        model = "within")
+
+summary(efeitosfixospeso)
+
+stargazer(regressaozinha, efeitosfixos, efeitosfixospeso ,type = "html", out = "model.htm")
 

@@ -1,0 +1,32 @@
+{
+    "id": "71F85526",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1599528960740.0,
+    "source_on_save": false,
+    "relative_order": 4,
+    "properties": {
+        "expression": "amostra",
+        "caption": "amostra",
+        "totalObservations": 500000,
+        "displayedObservations": 500000,
+        "variables": 240,
+        "cacheKey": "3CA885F2",
+        "object": "amostra",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=amostra&cache_key=3CA885F2&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1599515494,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1599528960740,
+    "read_only": false,
+    "read_only_alternatives": []
+}

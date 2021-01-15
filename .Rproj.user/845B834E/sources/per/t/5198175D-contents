@@ -27,10 +27,12 @@ library(anytime)
 
 
 
-base <- read_csv("forecastwithvix_07-06-20.csv")
-base_no_vix <- read_csv("forecastwithoutvix_07-06-20.csv")
+base <- read_csv("forecastwithvix_03_08-20.csv")
+base_no_vix <- read_csv("forecastwithoutvix_03-08-20.csv")
 coucodes <- read.csv("coucodes.csv", sep=";")
 
+base = base[,-c(58:59)]
+base_no_vix = base_no_vix[,-c(52:53)] 
 ```
 
 
@@ -127,7 +129,7 @@ tabelinha <- teste %>%
 tabela <- left_join(teste, tabelinha)
 
 tabelona <- tabela %>%
-  subset(year == "2020-06-01") %>%
+  subset(year == "2020-07-01") %>%
   mutate(crisis_probability = round(pred,2)) %>%
   select(year,`ISO2 Code`, crisis_probability, trend)
 

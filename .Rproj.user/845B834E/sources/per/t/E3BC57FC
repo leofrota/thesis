@@ -1,0 +1,32 @@
+{
+    "id": "E3BC57FC",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1599517574693.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "expression": "amostra_nascidos",
+        "caption": "amostra_nascidos",
+        "totalObservations": "500000",
+        "displayedObservations": "500000",
+        "variables": "119",
+        "cacheKey": "2E155C1D",
+        "object": "amostra_nascidos",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=amostra_nascidos&cache_key=2E155C1D&max_cols=50",
+        "preview": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 8314047743038485619,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1599517574693,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -3,7 +3,7 @@
     "path": "C:/Users/leomf/Downloads/Watchlist.Rmd",
     "project_path": null,
     "type": "r_markdown",
-    "hash": "3315651656",
+    "hash": "679831800",
     "contents": "",
     "dirty": false,
     "created": 1597095595614.0,
@@ -11,14 +11,14 @@
     "relative_order": 3,
     "properties": {
         "cursorPosition": "42,0",
-        "scrollLine": "24"
+        "scrollLine": "0"
     },
     "folds": "",
-    "lastKnownWriteTime": 1597095584,
+    "lastKnownWriteTime": 1597097621,
     "encoding": "UTF-8",
     "collab_server": "",
     "source_window": "",
-    "last_content_update": 1597095584,
+    "last_content_update": 1597097621,
     "read_only": false,
     "read_only_alternatives": []
 }

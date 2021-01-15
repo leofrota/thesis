@@ -1,0 +1,32 @@
+{
+    "id": "AF8D54FE",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1599529793044.0,
+    "source_on_save": false,
+    "relative_order": 7,
+    "properties": {
+        "expression": "dup",
+        "caption": "dup",
+        "totalObservations": "16689",
+        "displayedObservations": "16689",
+        "variables": "4",
+        "cacheKey": "6C0F6676",
+        "object": "dup",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=dup&cache_key=6C0F6676&max_cols=50",
+        "preview": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1656159598880,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1599529793044,
+    "read_only": false,
+    "read_only_alternatives": []
+}
